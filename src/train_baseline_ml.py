@@ -10,7 +10,13 @@ from sklearn.metrics import classification_report, confusion_matrix
 from sklearn.linear_model import LogisticRegression
 from sklearn.preprocessing import StandardScaler
 from sklearn.pipeline import Pipeline
+<<<<<<< HEAD
 
+=======
+from sklearn.tree import DecisionTreeClassifier
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.model_selection import GridSearchCV, StratifiedKFold
+>>>>>>> 15b8b705529c8eec8a23dafad7736aa55063fc0b
 
 # -----------------------
 # Config
@@ -58,10 +64,29 @@ def main() -> None:
     df = pd.read_csv(DATA_PATH)
 
     print("[INFO] Encoding boards...")
+<<<<<<< HEAD
     X = np.stack(df["fen_c20"].apply(fen_to_vector).values)
     y = df["label"].values
 
     print("[INFO] X shape:", X.shape)
+=======
+    X_path = PROJECT_ROOT / "data" / "processed" / "X_c20.npy"
+    y_path = PROJECT_ROOT / "data" / "processed" / "y_c20.npy"
+
+    if X_path.exists() and y_path.exists():
+        print("[INFO] Loading cached features...")
+        X = np.load(X_path)
+        y = np.load(y_path)
+    else:
+        print("[INFO] Encoding boards (first run can take a while)...")
+        X = np.stack(df["fen_c20"].astype(str).apply(fen_to_vector).values)
+        y = df["label"].values
+        np.save(X_path, X)
+        np.save(y_path, y)
+        print("[INFO] Saved cache:", X_path.name, y_path.name)
+
+        print("[INFO] X shape:", X.shape)
+>>>>>>> 15b8b705529c8eec8a23dafad7736aa55063fc0b
 
     X_train, X_test, y_train, y_test = train_test_split(
         X,
@@ -71,6 +96,7 @@ def main() -> None:
         stratify=y,
     )
 
+<<<<<<< HEAD
     pipe = Pipeline(
         [
             ("scaler", StandardScaler()),
@@ -91,6 +117,36 @@ def main() -> None:
     print(classification_report(y_test, y_pred, digits=4))
     print("Confusion matrix:")
     print(confusion_matrix(y_test, y_pred))
+=======
+    models = {
+        "logreg": Pipeline([
+            ("scaler", StandardScaler(with_mean=False)),
+            ("clf", LogisticRegression(max_iter=300, solver="lbfgs")),
+        ]),
+        "decision_tree": DecisionTreeClassifier(
+            max_depth=10,
+            min_samples_leaf=1,
+            random_state=RANDOM_STATE,
+        ),
+        "random_forest": RandomForestClassifier(
+            n_estimators=400,
+            max_depth=None,
+            min_samples_leaf=1,
+            n_jobs=-1,
+            random_state=RANDOM_STATE,
+        ),
+    }
+    
+    for name, model in models.items():
+        print(f"\n[INFO] Training {name} ...")
+        model.fit(X_train, y_train)
+
+        print(f"[INFO] Evaluation {name} on test set")
+        y_pred = model.predict(X_test)
+        print(classification_report(y_test, y_pred, digits=4))
+        print(classification_report(y_test, y_pred, digits=4, zero_division=0))
+        print(confusion_matrix(y_test, y_pred, labels=[0, 1, 2]))
+>>>>>>> 15b8b705529c8eec8a23dafad7736aa55063fc0b
 
 
 if __name__ == "__main__":

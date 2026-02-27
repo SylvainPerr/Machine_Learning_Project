@@ -26,7 +26,7 @@ TEST_SIZE = 0.2
 
 # Choisis ce que tu veux lancer
 # options : "logreg", "dt", "rf", "rf_gridsearch", "rf_randomsearch"
-RUN_MODELS = [""]  
+RUN_MODELS = ["logreg"]  
 
 USE_SMALL_TRAIN = True
 TRAIN_SMALL_SIZE = 50000  # ou 0.25 pour une proportion

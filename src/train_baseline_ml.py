@@ -26,7 +26,7 @@ TEST_SIZE = 0.2
 
 # Choisis ce que tu veux lancer
 # options : "logreg", "dt", "rf", "rf_gridsearch", "rf_randomsearch"
-RUN_MODELS = ["rf_randomsearch"]  
+RUN_MODELS = [""]  
 
 USE_SMALL_TRAIN = True
 TRAIN_SMALL_SIZE = 50000  # ou 0.25 pour une proportion
@@ -71,18 +71,15 @@ def fen_to_vector(fen: str) -> np.ndarray:
         else:
             material_black += value
 
-        #Ajout différence de matériel 
-        diff_material = material_white - material_black
+    #Ajout différence de matériel 
+    diff_material = material_white - material_black
+    flat = x.reshape(-1)
+    extra_features = np.array(
+        [material_white, material_black, diff_material],
+       dtype=np.float32
+    )
 
-        flat = x.reshape(-1)
-
-
-        extra_features = np.array(
-            [material_white, material_black, diff_material],
-           dtype=np.float32
-        )
-
-        return np.concatenate([flat, extra_features])
+    return np.concatenate([flat, extra_features])
 
 
 # -----------------------
@@ -121,7 +118,7 @@ def main() -> None:
         stratify=y,
     )
 
-    # Sous-échantillon du train (optionnel)
+    # Sous-échantillon du train 
     if USE_SMALL_TRAIN and len(y_train) > TRAIN_SMALL_SIZE:
         X_train_small, _, y_train_small, _ = train_test_split(
             X_train, y_train,

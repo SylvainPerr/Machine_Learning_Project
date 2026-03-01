@@ -23,6 +23,13 @@ DATA_PATH = PROJECT_ROOT / "data" / "processed" / "chess_positions_c20.csv"
 RANDOM_STATE = 42
 TEST_SIZE = 0.2
 
+# Choisis ce que tu veux lancer
+# options : "logreg", "dt", "rf", "rf_gridsearch", "rf_randomsearch"
+RUN_MODELS = [""]  
+
+USE_SMALL_TRAIN = True
+TRAIN_SMALL_SIZE = 50000  # ou 0.25 pour une proportion
+
 
 # -----------------------
 # FEN -> vector encoder
@@ -48,7 +55,22 @@ def fen_to_vector(fen: str) -> np.ndarray:
         idx = PIECE_TO_IDX[piece.symbol()]
         x[row, col, idx] = 1.0
 
-    return x.reshape(-1)
+        #Valeur du matériel pour les blancs et les noirs
+        value = PIECE_VALUE[piece.symbol()]
+        if piece.color:  # True = white
+            material_white += value
+        else:
+            material_black += value
+
+    #Ajout différence de matériel 
+    diff_material = material_white - material_black
+    flat = x.reshape(-1)
+    extra_features = np.array(
+        [material_white, material_black, diff_material],
+       dtype=np.float32
+    )
+
+    return np.concatenate([flat, extra_features])
 
 
 # -----------------------
@@ -85,12 +107,34 @@ def main() -> None:
         stratify=y,
     )
 
-    models = {
-        "logreg": Pipeline([
-            ("scaler", StandardScaler(with_mean=False)),
-            ("clf", LogisticRegression(max_iter=300, solver="lbfgs")),
-        ]),
-        "decision_tree": DecisionTreeClassifier(
+    # Sous-échantillon du train 
+    if USE_SMALL_TRAIN and len(y_train) > TRAIN_SMALL_SIZE:
+        X_train_small, _, y_train_small, _ = train_test_split(
+            X_train, y_train,
+            train_size=TRAIN_SMALL_SIZE,
+            stratify=y_train,
+            random_state=RANDOM_STATE
+        )
+        X_fit, y_fit = X_train_small, y_train_small
+        print(f"[INFO] Using SMALL train for fitting: {X_fit.shape}")
+    else:
+        X_fit, y_fit = X_train, y_train
+        print(f"[INFO] Using FULL train for fitting: {X_fit.shape}")
+
+
+    models = {}
+
+    #LOG Regression
+    if "logreg" in RUN_MODELS:
+        models["logreg"] = Pipeline([
+                ("scaler", StandardScaler(with_mean=False)),
+                ("clf", LogisticRegression(max_iter=300, solver="lbfgs"))
+        ])
+        
+
+    #Decision Tree
+    if "dt" in RUN_MODELS:
+        models["decision_tree"] = DecisionTreeClassifier(
             max_depth=10,
             min_samples_leaf=1,
             random_state=RANDOM_STATE,

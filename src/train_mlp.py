@@ -4,14 +4,11 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 import chess
-from pathlib import Path
 from torch.utils.data import Dataset, DataLoader
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import classification_report, confusion_matrix, accuracy_score
 
-
-PROJECT_ROOT = Path(__file__).resolve().parents[1]
-DATA_PATH = PROJECT_ROOT / "data" / "processed" / "chess_positions_c20.csv"
+DATA_PATH = r"D:\Documents\Machine_Learning_Project-main\Machine_Learning_Project-main\data\processed\chess_positions_c20.csv"
 BATCH_SIZE = 256
 EPOCHS = 10
 LR = 0.001
@@ -63,19 +60,8 @@ def main():
         return flat
 
     X_spatial = np.stack(df['fen_c20'].apply(fen_to_flat).values)
-    def material_features_from_fen(fen: str) -> np.ndarray:
-        piece_values = {'p': 1, 'n': 3, 'b': 3, 'r': 5, 'q': 9, 'k': 0}
-        board = chess.Board(fen.split()[0])
-        mw = mb = 0.0
-        for p in board.piece_map().values():
-            v = piece_values[p.symbol().lower()]
-            if p.color:
-                mw += v
-            else:
-                mb += v
-        return np.array([mw, mb, mw - mb], dtype=np.float32)
-
-    X_global = np.stack(df["fen_c20"].astype(str).apply(material_features_from_fen).values)
+    df_global = df.select_dtypes(include=['number']).drop(columns=['label', 'Unnamed: 0'], errors='ignore')
+    X_global = df_global.values.astype('float32')
     
     X_sp_train, X_sp_test, X_gl_train, X_gl_test, y_train, y_test = train_test_split(
         X_spatial, X_global, y, test_size=0.2, stratify=y, random_state=42
@@ -89,7 +75,11 @@ def main():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model = ChessMLP().to(device)
     
-    criterion = nn.CrossEntropyLoss()
+    class_counts = np.bincount(y_train)
+    weights = len(y_train) / (3.0 * class_counts)
+    class_weights = torch.tensor(weights, dtype=torch.float32).to(device)
+    
+    criterion = nn.CrossEntropyLoss(weight=class_weights)
     optimizer = optim.Adam(model.parameters(), lr=LR)
     
     for epoch in range(EPOCHS):

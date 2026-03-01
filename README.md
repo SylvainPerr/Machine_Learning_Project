@@ -14,6 +14,6 @@ Les données ne sont pas incluses dans ce dépôt.
 
 ## Auteur
 
-Rehan Masood - M2 ARM
-Sylvain Perraudin - M2 SIEF
-Victor Calard - M2 SIEF
+- Rehan Masood - M2 ARM
+- Sylvain Perraudin - M2 SIEF
+- Victor Calard - M2 SIEF

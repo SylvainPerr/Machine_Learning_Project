@@ -1,22 +1,19 @@
-# Machine Learning Project
+# Chess Position Classification – Projet de Machine Learning
 
-Projet de groupe – Master 2 MBFA  
-Université de Montpellier
+Projet réalisé dans le cadre du Master 2 MBFA, mention ARM-SIEF, en Machine Learning.
 
-## Objectif
-Mettre en œuvre des méthodes de machine learning sur un jeu de données
-afin d’analyser, modéliser et interpréter des phénomènes économiques ou financiers.
+L’objectif est de prédire le résultat d’une partie d’échecs (victoire des blancs, victoire des noirs ou partie nulle)
+à partir de positions extraites après le 20e coup.
 
-## Organisation du projet
-- Exploration et préparation des données
-- Implémentation de modèles de machine learning
-- Évaluation des performances
-- Analyse et interprétation des résultats
+## Dataset
 
-## Technologies
-Python · pandas · scikit-learn · Jupyter · GitHub
+Le dataset utilisé est disponible sur Kaggle :
+**arevel/chess-games** téléchargeable via Kaggle : "https://www.kaggle.com/datasets/arevel/chess-games"
+
+Les données ne sont pas incluses dans ce dépôt.
 
 ## Auteur
-Victor Calard
-Rehan Masood
-Sylvain Perraudin
+
+Rehan Masood - M2 ARM
+Sylvain Perraudin - M2 SIEF
+Victor Calard - M2 SIEF

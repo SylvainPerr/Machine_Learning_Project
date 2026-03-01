@@ -18,3 +18,5 @@ Python · pandas · scikit-learn · Jupyter · GitHub
 
 ## Auteur
 Victor Calard
+Rehan Masood
+Sylvain Perraudin

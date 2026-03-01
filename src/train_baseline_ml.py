@@ -12,8 +12,7 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.pipeline import Pipeline
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.model_selection import GridSearchCV, RandomizedSearchCV, StratifiedKFold
-from scipy.stats import randint
+from sklearn.model_selection import GridSearchCV, StratifiedKFold
 
 # -----------------------
 # Config
@@ -41,22 +40,14 @@ PIECE_TO_IDX = {
     "p": 6, "n": 7, "b": 8, "r": 9, "q": 10, "k": 11,
 }
 
-PIECE_VALUE = {
-    "P": 1, "N": 3, "B": 3, "R": 5, "Q": 9, "K": 0,
-    "p": 1, "n": 3, "b": 3, "r": 5, "q": 9, "k": 0,
-}
-
 
 def fen_to_vector(fen: str) -> np.ndarray:
     """
-    Encode une FEN en vecteur 8x8x12 -> flatten + 3 features globales:
-    material_white, material_black, diff_material.
+    Encode une FEN en vecteur 8x8x12 -> flatten.
+    One-hot des pièces, sans info side-to-move / roques pour baseline.
     """
     board = chess.Board(fen)
     x = np.zeros((8, 8, 12), dtype=np.float32)
-
-    material_white = 0
-    material_black = 0
 
     for square, piece in board.piece_map().items():
         row = 7 - chess.square_rank(square)
@@ -108,8 +99,6 @@ def main() -> None:
 
         print("[INFO] X shape:", X.shape)
 
-    #Split train/test
-
     X_train, X_test, y_train, y_test = train_test_split(
         X,
         y,
@@ -148,102 +137,124 @@ def main() -> None:
         models["decision_tree"] = DecisionTreeClassifier(
             max_depth=10,
             min_samples_leaf=1,
-            random_state=RANDOM_STATE
-        )
-
-    #Random Forest
-    if "rf" in RUN_MODELS:
-        models["random_forest"] = RandomForestClassifier(
+            random_state=RANDOM_STATE,
+        ),
+        "random_forest": RandomForestClassifier(
             n_estimators=400,
             max_depth=None,
             min_samples_leaf=1,
+            n_jobs=-1,
             random_state=RANDOM_STATE,
-            n_jobs=2
-        )
-
-
-    #GridSearchCV pour Random Forest
-
-    if "rf_gridsearch" in RUN_MODELS:
-        cv = StratifiedKFold(n_splits=3, shuffle=True, random_state=RANDOM_STATE)
-
-        rf = RandomForestClassifier(
-            random_state=RANDOM_STATE,
-            n_jobs=2, 
-        )
-
-        param_grid = {
-            "n_estimators": [200],
-            "max_depth": [None, 20],
-            "min_samples_leaf": [1, 2],
-        }
-
-        models["rf_gridsearch"] = GridSearchCV(
-            estimator=rf,
-            param_grid=param_grid,
-            scoring="f1_weighted",
-            cv=cv,
-            n_jobs=1,            
-            verbose=2,
-        )
-
-
-
-    # RandomizedSearchCV pour Random Forest
-    if "rf_randomsearch" in RUN_MODELS:
-
-        cv = StratifiedKFold(
-            n_splits=2,
-            shuffle=True,
-            random_state=RANDOM_STATE
-        )
-
-        rf = RandomForestClassifier(
-            random_state=RANDOM_STATE,
-            n_jobs=2
-        )
-
-        param_dist = {
-            "n_estimators": randint(100),      
-            "max_depth": [10, 20],
-            "min_samples_leaf": randint(1, 2),     
-        }
-
-        models["rf_randomsearch"] = RandomizedSearchCV(
-            estimator=rf,
-            param_distributions=param_dist,
-            n_iter=3,                 
-            scoring="f1_weighted",
-            cv=cv,
-            verbose=2,
-            random_state=RANDOM_STATE,
-            n_jobs=1                  
-        )
+        ),
+    }
     
-        
-        
-    # -----------------------
-    # Train + Eval
-    # -----------------------
-
     for name, model in models.items():
-        print(f"\n{'='*50}")
-        print(f"[INFO] Training {name}")
-        model.fit(X_fit, y_fit)
+        print(f"\n[INFO] Training {name} ...")
+        model.fit(X_train, y_train)
 
         print(f"[INFO] Evaluation {name} on test set")
-
-        if hasattr(model, "best_params_"):
-            print("[INFO] Best params:", model.best_params_)
-            print("[INFO] Best CV score (f1_weighted):", model.best_score_)
-            best_model = model.best_estimator_
-            y_pred = best_model.predict(X_test)
-        else:
-            y_pred = model.predict(X_test)
-
+        y_pred = model.predict(X_test)
+        print(classification_report(y_test, y_pred, digits=4))
         print(classification_report(y_test, y_pred, digits=4, zero_division=0))
-        print("Confusion Matrix:")
         print(confusion_matrix(y_test, y_pred, labels=[0, 1, 2]))
+
+
+if __name__ == "__main__":
+    main()
+
+from __future__ import annotations
+
+from pathlib import Path
+import numpy as np
+import pandas as pd
+import chess
+
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import classification_report, confusion_matrix
+from sklearn.linear_model import LogisticRegression
+from sklearn.preprocessing import StandardScaler
+from sklearn.pipeline import Pipeline
+
+
+# -----------------------
+# Config
+# -----------------------
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+DATA_PATH = PROJECT_ROOT / "data" / "processed" / "chess_positions_c20.csv"
+
+RANDOM_STATE = 42
+TEST_SIZE = 0.2
+
+
+# -----------------------
+# FEN -> vector encoder
+# -----------------------
+
+PIECE_TO_IDX = {
+    "P": 0, "N": 1, "B": 2, "R": 3, "Q": 4, "K": 5,
+    "p": 6, "n": 7, "b": 8, "r": 9, "q": 10, "k": 11,
+}
+
+
+def fen_to_vector(fen: str) -> np.ndarray:
+    """
+    Encode une FEN en vecteur 8x8x12 -> flatten.
+    One-hot des pièces, sans info side-to-move / roques pour baseline.
+    """
+    board = chess.Board(fen)
+    x = np.zeros((8, 8, 12), dtype=np.float32)
+
+    for square, piece in board.piece_map().items():
+        row = 7 - chess.square_rank(square)
+        col = chess.square_file(square)
+        idx = PIECE_TO_IDX[piece.symbol()]
+        x[row, col, idx] = 1.0
+
+    return x.reshape(-1)
+
+
+# -----------------------
+# Main
+# -----------------------
+
+def main() -> None:
+    print("[INFO] Loading data:", DATA_PATH)
+    df = pd.read_csv(DATA_PATH)
+
+    print("[INFO] Encoding boards...")
+    X = np.stack(df["fen_c20"].apply(fen_to_vector).values)
+    y = df["label"].values
+
+    print("[INFO] X shape:", X.shape)
+
+    X_train, X_test, y_train, y_test = train_test_split(
+        X,
+        y,
+        test_size=TEST_SIZE,
+        random_state=RANDOM_STATE,
+        stratify=y,
+    )
+
+    pipe = Pipeline(
+        [
+            ("scaler", StandardScaler()),
+            ("clf", LogisticRegression(
+                max_iter=1000,
+                multi_class="multinomial",
+                n_jobs=-1,
+            )),
+        ]
+    )
+
+    print("[INFO] Training Logistic Regression...")
+    pipe.fit(X_train, y_train)
+
+    print("[INFO] Evaluation on test set")
+    y_pred = pipe.predict(X_test)
+
+    print(classification_report(y_test, y_pred, digits=4))
+    print("Confusion matrix:")
+    print(confusion_matrix(y_test, y_pred))
 
 
 if __name__ == "__main__":
